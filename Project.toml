@@ -3,6 +3,9 @@ uuid = "eeda0dda-7046-4914-a807-2495fc7abb89"
 authors = ["pevnak <pevnak@gmail.com> and contributors"]
 version = "1.0.0-DEV"
 
+[deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+
 [compat]
 julia = "1.6"
 
