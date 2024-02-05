@@ -1,6 +1,9 @@
 # SafeTensors.jl
 
-This packages allows to load data stored in [safetensor format](https://huggingface.co/docs/safetensors/index). 
+
+[![Build Status](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml?query=branch%3Amain)
+
+This packages loads data stored in [safetensor format](https://huggingface.co/docs/safetensors/index). 
 Since Python is row-major and Julia is column-major, the dimensions are permuted such the tensor has the same shape as in python, but everything is correctly ordered. This includes a performance penalty in sense that we cannot be completely copy-free.
 
 The list of dependencies is kept minimal to `JSON3` for parsing the header.
@@ -47,6 +50,4 @@ It is also possible to load just header using unexported `load_header` as
 julia> d = SafeTensors.load_header("model.safetensors")
 ```
 
-
-[![Build Status](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
