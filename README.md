@@ -1,7 +1,7 @@
 # SafeTensors.jl
 
 
-[![Build Status](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/Pevnak/SafeTensors.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/FluxML/SafeTensors.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/FluxML/SafeTensors.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
 This packages loads data stored in [safetensor format](https://huggingface.co/docs/safetensors/index). 
 Since Python is row-major and Julia is column-major, the dimensions are permuted such the tensor has the same shape as in python, but everything is correctly ordered. This includes a performance penalty in sense that we cannot be completely copy-free.
