@@ -171,16 +171,18 @@ struct SafeTensor{D} <: AbstractDict{String, AbstractArray}
     metadata::Metadata
     data::D
 end
-Base.length(x::SafeTensor) = length(x.metadata)
+getmetadata(x::SafeTensor) = getfield(x, :metadata)
+Base.getproperty(x::SafeTensor, sym::Symbol) = sym == :metadata ? getmetadata(x).metadata : getfield(x, sym)
+Base.length(x::SafeTensor) = length(getmetadata(x))
 function Base.iterate(x::SafeTensor, s...)
-    it = iterate(x.metadata, s...)
+    it = iterate(getmetadata(x), s...)
     isnothing(it) && return nothing
     ((name, info), state) = it
     tensor = _tensorslice(x.data, info)
     return (name => tensor), state
 end
 function Base.getindex(x::SafeTensor, name)
-    info = x.metadata[name]
+    info = getmetadata(x)[name]
     return _tensorslice(x.data, info)
 end
 

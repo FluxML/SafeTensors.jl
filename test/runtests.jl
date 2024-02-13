@@ -73,10 +73,10 @@ end
             for use_mmap in (true, false)
                 torch_tensors = SafeTensors.deserialize(file; mmap = use_mmap)
                 tfile = tempname()
-                SafeTensors.serialize(tfile, Dict(torch_tensors), torch_tensors.metadata.metadata; mmap = use_mmap)
+                SafeTensors.serialize(tfile, Dict(torch_tensors), torch_tensors.metadata; mmap = use_mmap)
                 jl_tensors = SafeTensors.deserialize(tfile; mmap = use_mmap)
                 push!(jl_bytes, read(tfile))
-                @test jl_tensors.metadata.metadata == torch_tensors.metadata.metadata
+                @test jl_tensors.metadata == torch_tensors.metadata
                 for (name, tensor) in torch_tensors
                     @test collect(jl_tensors[name]) == collect(tensor)
                 end
