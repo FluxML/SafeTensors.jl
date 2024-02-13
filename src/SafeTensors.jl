@@ -160,7 +160,7 @@ function validate(metadata::Metadata)
             error("Invalid Offset: `$tensor_name`")
         end
         start = e
-        nelements = reduce(Checked.checked_mul, info.shape)
+        nelements = reduce(Checked.checked_mul, info.shape; init = one(UInt))
         nbytes = Checked.checked_mul(nelements, sizeof(tag2type(info.dtype)))
         if e - s != nbytes
             error("Tensor Invalid Info")
@@ -212,7 +212,7 @@ function read_metadata(buf::AbstractVector{UInt8})
     stop > buffer_len && error("Invalid Header Length")
     metadata = @inbounds JSON3.read(@view(buf[9:Int(stop)]), Metadata)
     buffer_end = validate(metadata)
-    buffer_end + 8 + n != buffer_len && errro("Metadata Incomplete Buffer")
+    buffer_end + 8 + n != buffer_len && error("Metadata Incomplete Buffer")
     return (n, metadata)
 end
 
