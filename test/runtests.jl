@@ -65,4 +65,23 @@ end
         t, s = type_and_shape(k)
         @test check_tensor(t, s, d[k])
     end
+
+    @testset "torch" begin
+        for thfile in ("torch", "torch_metadata")
+            file = joinpath(@__DIR__, "$(thfile).safetensors")
+            jl_bytes = []
+            for use_mmap in (true, false)
+                torch_tensors = SafeTensors.deserialize(file; mmap = use_mmap)
+                tfile = tempname()
+                SafeTensors.serialize(tfile, Dict(torch_tensors), torch_tensors.metadata.metadata; mmap = use_mmap)
+                jl_tensors = SafeTensors.deserialize(tfile; mmap = use_mmap)
+                push!(jl_bytes, read(tfile))
+                @test jl_tensors.metadata.metadata == torch_tensors.metadata.metadata
+                for (name, tensor) in torch_tensors
+                    @test collect(jl_tensors[name]) == collect(tensor)
+                end
+            end
+            jl_bytes[1] == jl_bytes[2]
+        end
+    end
 end
