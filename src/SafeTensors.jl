@@ -197,7 +197,7 @@ function _tensorslice(data, info)
     T = tag2type(info.dtype)
     shape = info.shape
     start, stop = info.data_offsets
-    tensor = _changemaj(reshape(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape)), shape)
+    tensor = @inbounds _changemaj(reshape(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape)), shape)
     return _from_le(tensor)
 end
 
@@ -210,7 +210,7 @@ function read_metadata(buf::AbstractVector{UInt8})
     n > min(MAX_HEADER_SIZE, typemax(Int)) && error("Header Too Large")
     stop = Checked.checked_add(UInt(n), 0x8)
     stop > buffer_len && error("Invalid Header Length")
-    metadata = JSON3.read(@view(buf[9:Int(stop)]), Metadata)
+    metadata = @inbounds JSON3.read(@view(buf[9:Int(stop)]), Metadata)
     buffer_end = validate(metadata)
     buffer_end + 8 + n != buffer_len && errro("Metadata Incomplete Buffer")
     return (n, metadata)
@@ -218,7 +218,7 @@ end
 
 function deserialize(buffer::AbstractVector{UInt8})
     n, metadata = read_metadata(buffer)
-    data = @view buffer[n+9:end]
+    data = @inbounds @view buffer[n+9:end]
     return SafeTensor(metadata, data)
 end
 
@@ -252,7 +252,7 @@ function prepare(
         info = TensorInfo(dtype, shape, (offset, noffset))
         offset = noffset
         hmetadata[name] = info
-        tensors[i] = tensor
+        @inbounds tensors[i] = tensor
     end
     metadata = HashMetadata(data_info, hmetadata)
     metadata_buf = IOBuffer()
