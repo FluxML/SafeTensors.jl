@@ -8,6 +8,8 @@ using BFloat16s
 using JSON3
 using JSON3.StructTypes
 
+using MappedArrays: mappedarray
+
 Base.@enum Dtype::UInt8 begin
     # Boolan type
     BOOL
@@ -186,6 +188,7 @@ function Base.getindex(x::SafeTensor, name)
     return _tensorslice(x.data, info)
 end
 
+_from_le(x) = mappedarray(ltoh, x)
 function _changemaj(x, shape::NTuple{N}) where N
     perm = ntuple(i->N+1-i, Val(N))
     return PermutedDimsArray(x, perm)
@@ -194,7 +197,8 @@ function _tensorslice(data, info)
     T = tag2type(info.dtype)
     shape = info.shape
     start, stop = info.data_offsets
-    return _changemaj(reshape(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape)), shape)
+    tensor = _changemaj(reshape(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape)), shape)
+    return _from_le(tensor)
 end
 
 const MAX_HEADER_SIZE = 100_000_000
@@ -202,7 +206,7 @@ const MAX_HEADER_SIZE = 100_000_000
 function read_metadata(buf::AbstractVector{UInt8})
     buffer_len = length(buf)
     buffer_len < 8 && error("Header Too Small")
-    n = @inbounds reinterpret(UInt64, @view(buf[1:8]))[1]
+    n = ltoh(@inbounds reinterpret(UInt64, @view(buf[1:8]))[1])
     n > min(MAX_HEADER_SIZE, typemax(Int)) && error("Header Too Large")
     stop = Checked.checked_add(UInt(n), 0x8)
     stop > buffer_len && error("Invalid Header Length")
@@ -267,13 +271,20 @@ function _prepare(data, data_info)
     return expected_size, header_size, n, header_bytes, tensors
 end
 
+@static if Base.ENDIAN_BOM == 0x04030201
+    _to_le(x) = x
+else
+    _to_le(x) = mappedarray(htol, x)
+end
+
 function _serialize_write(io::IO, expected_size, header_size, n, header_bytes, tensors)
     ws = zero(UInt)
-    ws += write(io, n)
+    ws += write(io, htol(n))
     ws += write(io, header_bytes)
     @assert ws == header_size
     for tensor in tensors
-        ws += write(io, collect(_changemaj(tensor, size(tensor))))
+        _tensor = _to_le(collect(_changemaj(tensor, size(tensor))))
+        ws += write(io, _tensor)
     end
     @assert ws == expected_size
     return
@@ -281,11 +292,12 @@ end
 
 function _serialize_copyto!(buf::AbstractVector{UInt8}, expected_size, header_size, n, header_bytes, tensors)
     @assert length(buf) == expected_size
-    copyto!(buf, 0x1, reinterpret(UInt8, [n]), 0x1, 0x8)
+    copyto!(buf, 0x1, reinterpret(UInt8, [htol(n)]), 0x1, 0x8)
     copyto!(buf, 0x9, header_bytes, 0x1, header_size - 0x8)
     pos = header_size + 0x1
     for tensor in tensors
-        _tensor = reinterpret(UInt8, collect(_changemaj(tensor, size(tensor))))
+        _tensor = _to_le(collect(_changemaj(tensor, size(tensor))))
+        _tensor = reinterpret(UInt8, _tensor)
         len = UInt(length(_tensor))
         copyto!(buf, pos, _tensor, 0x1, len)
         pos += len
