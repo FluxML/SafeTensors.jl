@@ -195,9 +195,9 @@ function _changemaj(x, shape::NTuple{N}) where N
 end
 function _tensorslice(data, info)
     T = tag2type(info.dtype)
-    shape = info.shape
+    shape = Int.(info.shape)
     start, stop = info.data_offsets
-    tensor = @inbounds _changemaj(reshape(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape)), shape)
+    tensor = @inbounds _changemaj(Base.ReshapedArray(reinterpret(T, @view(data[start+0x1:stop])), reverse(shape), ()), shape)
     return _from_le(tensor)
 end
 
