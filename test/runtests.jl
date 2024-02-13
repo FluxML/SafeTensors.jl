@@ -134,21 +134,28 @@ end
             write(io, b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0")
         end
         reloaded = read(file)
-        @test_throws "Invalid Offset: " SafeTensors.deserialize(reloaded)
+        @test_throws ErrorException("Invalid Offset: `weight_0`") SafeTensors.deserialize(reloaded)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00extra_bogus_data_for_polyglot_file"
-        @test_throws "Metadata Incomplete Buffer" SafeTensors.deserialize(serialized)
+        @test_throws ErrorException("Metadata Incomplete Buffer") SafeTensors.deserialize(serialized)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-        @test_throws "Metadata Incomplete Buffer" SafeTensors.deserialize(serialized)s
+        @test_throws ErrorException("Metadata Incomplete Buffer") SafeTensors.deserialize(serialized)s
         serialized = b"<\x00\x00\x00\x00\xff\xff\xff{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-        @test_throws "Header Too Large" SafeTensors.deserialize(serialized)
+        @test_throws ErrorException("Header Too Large") SafeTensors.deserialize(serialized)
         serialized = b""
-        @test_throws "Header Too Small" SafeTensors.deserialize(serialized)
+        @test_throws ErrorException("Header Too Small") SafeTensors.deserialize(serialized)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00"
-        @test_throws "Invalid Header Length" SafeTensors.deserialize(serialized)
-        serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00\xff"
-        @test_throws "ArgumentError: invalid JSON" SafeTensors.deserialize(serialized)
-        serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00{"
-        @test_throws "ArgumentError: invalid JSON" SafeTensors.deserialize(serialized)
+        @test_throws ErrorException("Invalid Header Length") SafeTensors.deserialize(serialized)
+        if VERSION < v"1.8"
+            serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00\xff"
+            @test_throws ArgumentError SafeTensors.deserialize(serialized)
+            serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00{"
+            @test_throws ArgumentError SafeTensors.deserialize(serialized)
+        else
+            serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00\xff"
+            @test_throws "ArgumentError: invalid JSON" SafeTensors.deserialize(serialized)
+            serialized = b"\x01\x00\x00\x00\x00\x00\x00\x00{"
+            @test_throws "ArgumentError: invalid JSON" SafeTensors.deserialize(serialized)
+        end
         serialized = b"\x06\x00\x00\x00\x00\x00\x00\x00{}\x0D\x20\x09\x0A"
         @test iszero(length(SafeTensors.deserialize(serialized)))
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,0],\"data_offsets\":[0, 0]}}"
@@ -159,11 +166,11 @@ end
         @test eltype(tensor) == Int32
         @test isempty(tensor)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0, 4]}}"
-        @test_throws "Tensor Invalid Info" SafeTensors.deserialize(serialized)
+        @test_throws ErrorException("Tensor Invalid Info") SafeTensors.deserialize(serialized)
         serialized = b"O\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,18446744073709551614],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-        @test_throws "OverflowError" SafeTensors.deserialize(serialized)
+        @test_throws OverflowError SafeTensors.deserialize(serialized)
         serialized = b"N\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,9223372036854775807],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-        @test_throws "OverflowError" SafeTensors.deserialize(serialized)
+        @test_throws OverflowError SafeTensors.deserialize(serialized)
     end
 
     @testset "torch" begin
