@@ -52,7 +52,7 @@ julia> tensors["float32_35"]
  10.0  11.0  12.0  13.0  14.0
 ```
 
-Serialization is also support:
+Serialization is also supported:
 
 ```julia
 julia> weights = Dict("W"=>randn(BFloat16, 3, 5), "b"=>rand(BFloat16, 3))
