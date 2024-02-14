@@ -66,6 +66,8 @@ julia> f = tempname();
 
 julia> SafeTensors.serialize(f, weights)
 
+julia> loaded = SafeTensors.deserialize(f);
+
 julia> loaded["W"] ≈ weights["W"]
 true
 
