@@ -55,6 +55,8 @@ julia> tensors["float32_35"]
 Serialization is also supported:
 
 ```julia
+julia> using Random, BFloat16s
+
 julia> weights = Dict("W"=>randn(BFloat16, 3, 5), "b"=>rand(BFloat16, 3))
 Dict{String, Array{BFloat16}} with 2 entries:
   "W" => [0.617188 0.695312 … 0.390625 -2.0; -0.65625 -0.617188 … 0.652344 0.244141; 0.226562 2.70312 … -0.174805 -0.7773…
