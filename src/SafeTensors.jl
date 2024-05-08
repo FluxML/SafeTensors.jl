@@ -134,6 +134,8 @@ function Base.getindex(x::Metadata, name)
     index = x.index_map[name]
     return @inbounds x.tensors[index]
 end
+Base.haskey(x::Metadata, name) = haskey(x.index_map, name)
+Base.get(x::Metadata, name, default) = haskey(x, name) ? x[name] : default
 
 StructTypes.StructType(::Type{Metadata}) = StructTypes.CustomStruct()
 function StructTypes.lower(x::Metadata)
@@ -187,6 +189,8 @@ function Base.getindex(x::SafeTensor, name)
     info = getmetadata(x)[name]
     return _tensorslice(x.data, info)
 end
+Base.haskey(x::SafeTensor, name) = haskey(getmetadata(x), name)
+Base.get(x::SafeTensor, name, default) = haskey(x, name) ? x[name] : default
 
 _from_le(x) = mappedarray(ltoh, x)
 function _changemaj(x, shape::NTuple{N}) where N

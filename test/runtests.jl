@@ -184,8 +184,10 @@ end
                 jl_tensors = SafeTensors.deserialize(tfile; mmap = use_mmap)
                 push!(jl_bytes, read(tfile))
                 @test jl_tensors.metadata == torch_tensors.metadata
+                @test isnothing(get(torch_tensors, "should_not_exist", nothing))
                 for (name, tensor) in torch_tensors
                     @test collect(jl_tensors[name]) == collect(tensor)
+                    @test haskey(torch_tensors, name)
                 end
             end
             jl_bytes[1] == jl_bytes[2]
