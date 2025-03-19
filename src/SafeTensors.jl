@@ -348,12 +348,30 @@ end
 Eagerly load the tensors in `filename`.
 """
 function load_safetensors(filename::AbstractString; mmap = true)
-    safetensor = deserialize(filename; mmap)
-    tensors = Dict{String, Array}(); sizehint!(tensors, length(safetensor))
-    for (name, tensor) in safetensor
-        tensors[name] = collect(tensor)
+    if isdir(filename)
+        index_file = joinpath(filename, "model.safetensors.index.json")
+        @assert isfile(index_file) "Index file not found: $index_file"
+        meta = JSON3.read(index_file)
+        weight_map = meta[:weight_map]
+        weights = Dict(
+            f => load_safetensors(joinpath(filename, f); mmap = mmap)
+            for f in Set(values(weight_map))
+        )
+
+        tensors = Dict(
+            String(k) => weights[v][String(k)]
+            for (k, v) in weight_map
+        )
+
+        return tensors
+    else
+        safetensor = deserialize(filename; mmap)
+        tensors = Dict{String, Array}(); sizehint!(tensors, length(safetensor))
+        for (name, tensor) in safetensor
+            tensors[name] = collect(tensor)
+        end
+        return tensors
     end
-    return tensors
 end
 
 export load_safetensors
