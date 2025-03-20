@@ -9,6 +9,7 @@ using JSON3
 using JSON3.StructTypes
 
 using MappedArrays: mappedarray
+using ProgressMeter
 
 Base.@enum Dtype::UInt8 begin
     # Boolan type
@@ -349,21 +350,28 @@ Eagerly load the tensors in `filename`.
 """
 function load_safetensors(filename::AbstractString; mmap = true)
     if isdir(filename)
+        weight_file = joinpath(filename, "model.safetensors")
         index_file = joinpath(filename, "model.safetensors.index.json")
-        @assert isfile(index_file) "Index file not found: $index_file"
-        meta = JSON3.read(index_file)
-        weight_map = meta[:weight_map]
-        weights = Dict(
-            f => load_safetensors(joinpath(filename, f); mmap = mmap)
-            for f in Set(values(weight_map))
-        )
 
-        tensors = Dict(
-            String(k) => weights[v][String(k)]
-            for (k, v) in weight_map
-        )
+        if isfile(weight_file)
+            return load_safetensors(weight_file; mmap = mmap)
+        elseif isfile(index_file)
+            meta = JSON3.read(index_file)
+            weight_map = meta[:weight_map]
+            weights = Dict{String, Dict{String, Array}}()
+            @showprogress desc="Loading checkpoint shards:" for f in Set(values(weight_map))
+                weights[f] = load_safetensors(joinpath(filename, f); mmap = mmap)
+            end
 
-        return tensors
+            tensors = Dict(
+                String(k) => weights[v][String(k)]
+                for (k, v) in weight_map
+            )
+
+            return tensors
+        else
+            @error "Unknown Safetensors repo. Neigher `model.safetensors` nor `model.safetensors.index.json` found under $filename"
+        end
     else
         safetensor = deserialize(filename; mmap)
         tensors = Dict{String, Array}(); sizehint!(tensors, length(safetensor))

@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "total_size": 4305
+  },
+  "weight_map": {
+    "float16_3": "model-00001-of-00006.safetensors",
+    "float32_3": "model-00001-of-00006.safetensors",
+    "float64_3": "model-00001-of-00006.safetensors",
+    "bool_3": "model-00001-of-00006.safetensors",
+    "uint8_3": "model-00001-of-00006.safetensors",
+    "int8_3": "model-00001-of-00006.safetensors",
+    "int16_3": "model-00001-of-00006.safetensors",
+    "int32_3": "model-00001-of-00006.safetensors",
+    "int64_3": "model-00001-of-00006.safetensors",
+    "float16_35": "model-00001-of-00006.safetensors",
+    "float32_35": "model-00001-of-00006.safetensors",
+    "float64_35": "model-00001-of-00006.safetensors",
+    "bool_35": "model-00001-of-00006.safetensors",
+    "uint8_35": "model-00001-of-00006.safetensors",
+    "int8_35": "model-00001-of-00006.safetensors",
+    "int16_35": "model-00001-of-00006.safetensors",
+    "int32_35": "model-00001-of-00006.safetensors",
+    "int64_35": "model-00001-of-00006.safetensors",
+    "float16_357": "model-00001-of-00006.safetensors",
+    "float32_357": "model-00002-of-00006.safetensors",
+    "float64_357": "model-00003-of-00006.safetensors",
+    "bool_357": "model-00003-of-00006.safetensors",
+    "uint8_357": "model-00004-of-00006.safetensors",
+    "int8_357": "model-00004-of-00006.safetensors",
+    "int16_357": "model-00004-of-00006.safetensors",
+    "int32_357": "model-00004-of-00006.safetensors",
+    "int64_357": "model-00005-of-00006.safetensors",
+    "float8_e5m2_3": "model-00005-of-00006.safetensors",
+    "float8_e4m3fn_3": "model-00005-of-00006.safetensors",
+    "bfloat16_3": "model-00005-of-00006.safetensors",
+    "float8_e5m2_35": "model-00005-of-00006.safetensors",
+    "float8_e4m3fn_35": "model-00005-of-00006.safetensors",
+    "bfloat16_35": "model-00005-of-00006.safetensors",
+    "float8_e5m2_357": "model-00006-of-00006.safetensors",
+    "float8_e4m3fn_357": "model-00006-of-00006.safetensors",
+    "bfloat16_357": "model-00006-of-00006.safetensors"
+  }
+}
