@@ -57,7 +57,7 @@ loaded = th_load_file("./non_sharded/model.safetensors")
 th_save_file(tensors, "./non_sharded/model.with_metadata.safetensors", {"test":"metadata", "version":"2.2"})
 loaded = th_load_file("./non_sharded/model.with_metadata.safetensors")
 
-# shared tensors
+# sharded tensors
 # borrowed from https://github.com/huggingface/huggingface_hub/blob/dc5e893556ce46fd82d16ddf5d7db2df6963e4fb/src/huggingface_hub/serialization/_torch.py#L344-L368
 import json
 from huggingface_hub import split_torch_state_dict_into_shards
