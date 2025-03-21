@@ -9,6 +9,7 @@ using JSON3
 using JSON3.StructTypes
 
 using MappedArrays: mappedarray
+using ProgressMeter
 
 Base.@enum Dtype::UInt8 begin
     # Boolan type
@@ -349,13 +350,36 @@ Eagerly load the tensors in `filename`.
 """
 function load_safetensors(filename::AbstractString; mmap = true)
     safetensor = deserialize(filename; mmap)
-    tensors = Dict{String, Array}(); sizehint!(tensors, length(safetensor))
+    tensors = Dict{String,Array}()
+    sizehint!(tensors, length(safetensor))
     for (name, tensor) in safetensor
         tensors[name] = collect(tensor)
     end
     return tensors
 end
 
-export load_safetensors
+"""
+    load_sharded_safetensors(dir::AbstractString; mmap = true)
+
+The default index file `model.safetensors.index.json` in `dir` is used to load the sharded tensors.
+"""
+function load_sharded_safetensors(dir::AbstractString; mmap=true)
+    index_file = joinpath(dir, "model.safetensors.index.json")
+    meta = JSON3.read(index_file)
+    weight_map = meta[:weight_map]
+    weights = Dict{String,Dict{String,Array}}()
+    @showprogress desc = "Loading checkpoint shards:" for f in Set(values(weight_map))
+        weights[f] = load_safetensors(joinpath(dir, f); mmap=mmap)
+    end
+
+    tensors = Dict(
+        String(k) => weights[v][String(k)]
+        for (k, v) in weight_map
+    )
+
+    return tensors
+end
+
+export load_safetensors, load_sharded_safetensors
 
 end

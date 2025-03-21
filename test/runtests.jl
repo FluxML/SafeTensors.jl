@@ -61,7 +61,7 @@ function check_tensor(::Type{Bool}, s, x)
 end
 
 @testset "SafeTensors.jl" begin
-    d = load_safetensors("model.safetensors")
+    d = load_safetensors(joinpath(@__DIR__, "non_sharded", "model.numpy.safetensors"))
     for k in keys(d)
         t, s = type_and_shape(k)
         @test check_tensor(t, s, d[k])
@@ -174,8 +174,8 @@ end
     end
 
     @testset "torch" begin
-        for thfile in ("torch", "torch_metadata")
-            file = joinpath(@__DIR__, "$(thfile).safetensors")
+        for thfile in ("model.with_metadata", "model")
+            file = joinpath(@__DIR__, "non_sharded", "$(thfile).safetensors")
             jl_bytes = []
             for use_mmap in (true, false)
                 torch_tensors = SafeTensors.deserialize(file; mmap = use_mmap)
@@ -192,5 +192,11 @@ end
             end
             jl_bytes[1] == jl_bytes[2]
         end
+    end
+
+    @testset "shards" begin
+        x = load_sharded_safetensors(joinpath(@__DIR__, "sharded"))
+        y = load_safetensors(joinpath(@__DIR__, "non_sharded", "model.safetensors"))
+        @test x == y
     end
 end
