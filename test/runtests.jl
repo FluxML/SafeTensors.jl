@@ -195,8 +195,8 @@ end
     end
 
     @testset "shards" begin
-        x = load_safetensors(joinpath(@__DIR__, "sharded"))
-        y = load_safetensors(joinpath(@__DIR__, "non_sharded"))
+        x = load_sharded_safetensors(joinpath(@__DIR__, "sharded"))
+        y = load_safetensors(joinpath(@__DIR__, "non_sharded", "model.safetensors"))
         @test x == y
     end
 end

@@ -349,39 +349,40 @@ end
 Eagerly load the tensors in `filename`.
 """
 function load_safetensors(filename::AbstractString; mmap = true)
-    if isdir(filename)
-        weight_file = joinpath(filename, "model.safetensors")
-        index_file = joinpath(filename, "model.safetensors.index.json")
+    safetensor = deserialize(filename; mmap)
+    tensors = Dict{String,Array}()
+    sizehint!(tensors, length(safetensor))
+    for (name, tensor) in safetensor
+        tensors[name] = collect(tensor)
+    end
+    return tensors
+end
 
-        if isfile(weight_file)
-            return load_safetensors(weight_file; mmap = mmap)
-        elseif isfile(index_file)
-            meta = JSON3.read(index_file)
-            weight_map = meta[:weight_map]
-            weights = Dict{String, Dict{String, Array}}()
-            @showprogress desc="Loading checkpoint shards:" for f in Set(values(weight_map))
-                weights[f] = load_safetensors(joinpath(filename, f); mmap = mmap)
-            end
+function load_sharded_safetensors(dir::AbstractString; mmap=true)
+    weight_file = joinpath(dir, "model.safetensors")
+    index_file = joinpath(dir, "model.safetensors.index.json")
 
-            tensors = Dict(
-                String(k) => weights[v][String(k)]
-                for (k, v) in weight_map
-            )
-
-            return tensors
-        else
-            @error "Unknown Safetensors repo. Neigher `model.safetensors` nor `model.safetensors.index.json` found under $filename"
+    if isfile(weight_file)
+        return load_safetensors(weight_file; mmap=mmap)
+    elseif isfile(index_file)
+        meta = JSON3.read(index_file)
+        weight_map = meta[:weight_map]
+        weights = Dict{String,Dict{String,Array}}()
+        @showprogress desc = "Loading checkpoint shards:" for f in Set(values(weight_map))
+            weights[f] = load_safetensors(joinpath(dir, f); mmap=mmap)
         end
-    else
-        safetensor = deserialize(filename; mmap)
-        tensors = Dict{String, Array}(); sizehint!(tensors, length(safetensor))
-        for (name, tensor) in safetensor
-            tensors[name] = collect(tensor)
-        end
+
+        tensors = Dict(
+            String(k) => weights[v][String(k)]
+            for (k, v) in weight_map
+        )
+
         return tensors
+    else
+        @error "Unknown Safetensors repo. Neigher `model.safetensors` nor `model.safetensors.index.json` found under $dir"
     end
 end
 
-export load_safetensors
+export load_safetensors, load_sharded_safetensors
 
 end

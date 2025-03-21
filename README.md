@@ -41,6 +41,8 @@ Dict{String, Array} with 27 entries:
   "float64_3"   => [0.0, 1.0, 2.0]
 ```
 
+Sharded safetensors are also supported with `load_sharded_safetensors`.
+
 It can also perform a lazy loading with `SafeTensors.deserialize("model.safetensors")` which `mmap` the file and return a `Dict`-like object:
 ```julia
 julia> tensors = SafeTensors.deserialize("test/model.safetensors"; mmap = true #= default to `true`=#);

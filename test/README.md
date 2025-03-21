@@ -1,0 +1,1 @@
+Run `uv run gendata.py` to generate safetensors for the test data.
