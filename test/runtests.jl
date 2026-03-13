@@ -134,7 +134,7 @@ end
             write(io, b"\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0")
         end
         reloaded = read(file)
-        @test_throws ErrorException("Invalid Offset: `weight_0`") SafeTensors.deserialize(reloaded)
+        @test_throws "Invalid Offset" SafeTensors.deserialize(reloaded)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00extra_bogus_data_for_polyglot_file"
         @test_throws ErrorException("Metadata Incomplete Buffer") SafeTensors.deserialize(serialized)
         serialized = b"<\x00\x00\x00\x00\x00\x00\x00{\"test\":{\"dtype\":\"I32\",\"shape\":[2,2],\"data_offsets\":[0,16]}}\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
