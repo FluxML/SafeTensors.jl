@@ -1,5 +1,5 @@
 using SafeTensors
-using JSON3
+using JSON
 using Test
 
 
@@ -125,7 +125,7 @@ end
             tensors["weight_$(i-1)"] = SafeTensors.TensorInfo(dtype, shape, data_offsets)
         end
         metadata = SafeTensors.HashMetadata(nothing, tensors)
-        serialized = codeunits(JSON3.write(metadata))
+        serialized = codeunits(JSON.json(metadata))
         n = length(serialized)
         file = tempname()
         open(file, "w+") do io
