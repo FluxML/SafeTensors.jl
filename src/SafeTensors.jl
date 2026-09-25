@@ -86,20 +86,18 @@ function JSON.lift(::Type{TensorInfo}, x)
     return TensorInfo(dtype, Tuple{Vararg{UInt}}(x["shape"]), (UInt(start), UInt(stop)))
 end
 
-const MetadataValue = Union{Dict{String, String}, TensorInfo}
-# The header maps tensor names to `TensorInfo`, except for the optional `__metadata__` key.
-JSON.@choosetype MetadataValue x -> :dtype in propertynames(x) ? TensorInfo : Dict{String, String}
-
-struct HashMetadata <: AbstractDict{String, MetadataValue}
+struct HashMetadata <: AbstractDict{String, Union{Dict{String, String}, TensorInfo}}
     metadata::Union{Dict{String, String}, Nothing}
     tensors::Dict{String, TensorInfo}
 end
 Base.length(m::HashMetadata) = length(m.tensors) + !isnothing(m.metadata)
 Base.iterate(m::HashMetadata) = isnothing(m.metadata) ? iterate(m, nothing) : (("__metadata__" => m.metadata), nothing)
 Base.iterate(m::HashMetadata, state) = isnothing(state) ? iterate(m.tensors) : iterate(m.tensors, state)
-function HashMetadata(x::Dict{String, MetadataValue})
-    metadata = get(x, "__metadata__", nothing); delete!(x, "__metadata__")
-    tensors = Dict{String, TensorInfo}(x)
+# The header maps tensor names to `TensorInfo`, except for the optional `__metadata__` key.
+# Dispatch on the key, not the value: user metadata may itself contain e.g. a `"dtype"` entry.
+function HashMetadata(header::AbstractDict{String})
+    metadata = haskey(header, "__metadata__") ? Dict{String, String}(header["__metadata__"]) : nothing
+    tensors = Dict{String, TensorInfo}(k => JSON.lift(TensorInfo, v) for (k, v) in header if k != "__metadata__")
     return HashMetadata(metadata, tensors)
 end
 
@@ -209,7 +207,7 @@ function read_metadata(buf::AbstractVector{UInt8})
     n > min(MAX_HEADER_SIZE, typemax(Int)) && error("Header Too Large")
     stop = Checked.checked_add(UInt(n), 0x8)
     stop > buffer_len && error("Invalid Header Length")
-    header = @inbounds JSON.parse(@view(buf[9:Int(stop)]), Dict{String, MetadataValue})
+    header = @inbounds JSON.parse(@view(buf[9:Int(stop)]))
     metadata = Metadata(HashMetadata(header))
     buffer_end = validate(metadata)
     buffer_end + 8 + n != buffer_len && error("Metadata Incomplete Buffer")

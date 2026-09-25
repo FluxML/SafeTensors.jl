@@ -194,6 +194,16 @@ end
         end
     end
 
+    @testset "metadata with tensor-like keys" begin
+        data_info = Dict("dtype" => "bfloat16", "shape" => "x", "data_offsets" => "y")
+        weights = Dict("W" => rand(Float32, 2, 3))
+        file = tempname()
+        SafeTensors.serialize(file, weights, data_info)
+        loaded = SafeTensors.deserialize(file)
+        @test loaded.metadata == data_info
+        @test collect(loaded["W"]) == weights["W"]
+    end
+
     @testset "shards" begin
         x = load_sharded_safetensors(joinpath(@__DIR__, "sharded"))
         y = load_safetensors(joinpath(@__DIR__, "non_sharded", "model.safetensors"))
