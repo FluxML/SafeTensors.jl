@@ -1,5 +1,5 @@
 using SafeTensors
-using JSON3
+using JSON
 using Test
 
 
@@ -125,7 +125,7 @@ end
             tensors["weight_$(i-1)"] = SafeTensors.TensorInfo(dtype, shape, data_offsets)
         end
         metadata = SafeTensors.HashMetadata(nothing, tensors)
-        serialized = codeunits(JSON3.write(metadata))
+        serialized = codeunits(JSON.json(metadata))
         n = length(serialized)
         file = tempname()
         open(file, "w+") do io
@@ -192,6 +192,16 @@ end
             end
             jl_bytes[1] == jl_bytes[2]
         end
+    end
+
+    @testset "metadata with tensor-like keys" begin
+        data_info = Dict("dtype" => "bfloat16", "shape" => "x", "data_offsets" => "y")
+        weights = Dict("W" => rand(Float32, 2, 3))
+        file = tempname()
+        SafeTensors.serialize(file, weights, data_info)
+        loaded = SafeTensors.deserialize(file)
+        @test loaded.metadata == data_info
+        @test collect(loaded["W"]) == weights["W"]
     end
 
     @testset "shards" begin

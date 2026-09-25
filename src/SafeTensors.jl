@@ -5,8 +5,7 @@ using Mmap
 
 using DLFP8Types
 using BFloat16s
-using JSON3
-using JSON3.StructTypes
+using JSON
 
 using MappedArrays: mappedarray
 using ProgressMeter
@@ -63,15 +62,7 @@ const typemap = Dict(
 )
 
 tag2type(tag::Dtype) = typemap[tag]
-tag2name(tag::Dtype) = Symbol(tag)
-
-let nametagmap = Dict(v => Dtype(k) for (k, v) in Base.Enums.namemap(Dtype)),
-    typetagmap = Dict(reverse(kv) for kv in typemap)
-    global function name2tag(name)
-        tag = get(nametagmap, Symbol(name), nothing)
-        isnothing(tag) && error("Unknown Dtype: $name")
-        return tag
-    end
+let typetagmap = Dict(reverse(kv) for kv in typemap)
     global function type2tag(@nospecialize T)
         tag = get(typetagmap, T, nothing)
         isnothing(tag) && error("Unsupproted data type: $T")
@@ -79,20 +70,21 @@ let nametagmap = Dict(v => Dtype(k) for (k, v) in Base.Enums.namemap(Dtype)),
     end
 end
 
-StructTypes.StructType(::Type{Dtype}) = StructTypes.CustomStruct()
-StructTypes.lower(x::Dtype) = tag2name(x)
-StructTypes.lowertype(::Type{Dtype}) = Symbol
-StructTypes.construct(::Type{Dtype}, x::Symbol) = name2tag(x)
+# `Dtype` is serialized as the JSON string of its name, which `JSON` already does for `Enum`s.
 
-struct TensorInfo
+# `Tuple{Vararg{UInt}}` has no definite number of fields so `JSON` cannot materialize it
+# directly; `@nonstruct` lets us spell out the conversion in `lift`/`lower` instead.
+JSON.@nonstruct struct TensorInfo
     dtype::Dtype
     shape::Tuple{Vararg{UInt}}
     data_offsets::NTuple{2, UInt} # rust zero-based offsets, need +1,+0 when used as index
 end
-StructTypes.StructType(::Type{TensorInfo}) = StructTypes.CustomStruct()
-StructTypes.lower(x::TensorInfo) = (; dtype = x.dtype, shape = x.shape, data_offsets = x.data_offsets)
-StructTypes.lowertype(::Type{TensorInfo}) = @NamedTuple{dtype::Dtype, shape::Vector{UInt}, data_offsets::NTuple{2, UInt}}
-StructTypes.construct(::Type{TensorInfo}, x::NamedTuple) = TensorInfo(x.dtype, Tuple(x.shape), x.data_offsets)
+JSON.lower(x::TensorInfo) = (; dtype = x.dtype, shape = x.shape, data_offsets = x.data_offsets)
+function JSON.lift(::Type{TensorInfo}, x)
+    start, stop = x["data_offsets"]
+    dtype = JSON.lift(Dtype, x["dtype"])
+    return TensorInfo(dtype, Tuple{Vararg{UInt}}(x["shape"]), (UInt(start), UInt(stop)))
+end
 
 struct HashMetadata <: AbstractDict{String, Union{Dict{String, String}, TensorInfo}}
     metadata::Union{Dict{String, String}, Nothing}
@@ -101,9 +93,11 @@ end
 Base.length(m::HashMetadata) = length(m.tensors) + !isnothing(m.metadata)
 Base.iterate(m::HashMetadata) = isnothing(m.metadata) ? iterate(m, nothing) : (("__metadata__" => m.metadata), nothing)
 Base.iterate(m::HashMetadata, state) = isnothing(state) ? iterate(m.tensors) : iterate(m.tensors, state)
-function StructTypes.construct(::Type{HashMetadata}, x::Dict{String, Union{Dict{String, String}, TensorInfo}})
-    metadata = get(x, "__metadata__", nothing); delete!(x, "__metadata__")
-    tensors = Dict{String, TensorInfo}(x)
+# The header maps tensor names to `TensorInfo`, except for the optional `__metadata__` key.
+# Dispatch on the key, not the value: user metadata may itself contain e.g. a `"dtype"` entry.
+function HashMetadata(header::AbstractDict{String})
+    metadata = haskey(header, "__metadata__") ? Dict{String, String}(header["__metadata__"]) : nothing
+    tensors = Dict{String, TensorInfo}(k => JSON.lift(TensorInfo, v) for (k, v) in header if k != "__metadata__")
     return HashMetadata(metadata, tensors)
 end
 
@@ -138,8 +132,7 @@ end
 Base.haskey(x::Metadata, name) = haskey(x.index_map, name)
 Base.get(x::Metadata, name, default) = haskey(x, name) ? x[name] : default
 
-StructTypes.StructType(::Type{Metadata}) = StructTypes.CustomStruct()
-function StructTypes.lower(x::Metadata)
+function JSON.lower(x::Metadata)
     metadata = x.metadata
     tensors = Dict{String, TensorInfo}(); sizehint!(tensors, length(x.tensors))
     @inbounds for (name, index) in x.index_map
@@ -147,8 +140,7 @@ function StructTypes.lower(x::Metadata)
     end
     return HashMetadata(metadata, tensors)
 end
-StructTypes.lowertype(::Type{Metadata}) = HashMetadata
-function StructTypes.construct(::Type{Metadata}, x::HashMetadata)
+function Metadata(x::HashMetadata)
     metadata = x.metadata
     tensors = sort!(collect(x.tensors); by = pair -> last(pair).data_offsets)
     return Metadata(metadata, tensors)
@@ -215,7 +207,8 @@ function read_metadata(buf::AbstractVector{UInt8})
     n > min(MAX_HEADER_SIZE, typemax(Int)) && error("Header Too Large")
     stop = Checked.checked_add(UInt(n), 0x8)
     stop > buffer_len && error("Invalid Header Length")
-    metadata = @inbounds JSON3.read(@view(buf[9:Int(stop)]), Metadata)
+    header = @inbounds JSON.parse(@view(buf[9:Int(stop)]))
+    metadata = Metadata(HashMetadata(header))
     buffer_end = validate(metadata)
     buffer_end + 8 + n != buffer_len && error("Metadata Incomplete Buffer")
     return (n, metadata)
@@ -261,7 +254,7 @@ function prepare(
     end
     metadata = HashMetadata(data_info, hmetadata)
     metadata_buf = IOBuffer()
-    JSON3.write(metadata_buf, metadata)
+    JSON.json(metadata_buf, metadata)
     extra = 8 - mod1(metadata_buf.size, 8)
     foreach(_->write(metadata_buf, ' '), 1:extra)
     n = UInt64(metadata_buf.size)
@@ -365,8 +358,8 @@ The default index file `model.safetensors.index.json` in `dir` is used to load t
 """
 function load_sharded_safetensors(dir::AbstractString; mmap=true)
     index_file = joinpath(dir, "model.safetensors.index.json")
-    meta = JSON3.read(index_file)
-    weight_map = meta[:weight_map]
+    meta = JSON.parsefile(index_file)
+    weight_map = meta["weight_map"]
     weights = Dict{String,Dict{String,Array}}()
     @showprogress desc = "Loading checkpoint shards:" for f in Set(values(weight_map))
         weights[f] = load_safetensors(joinpath(dir, f); mmap=mmap)
